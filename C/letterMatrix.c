@@ -2,20 +2,22 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct {
-    char c;
-    void* firstChild;
-    void* parent;
-    void* sibling;
-} Node;
+#include "list_node.h"
 
-Node* find_child(Node* parent, char c) {
-    parent=parent->firstChild;
-    while( parent && parent->c!=c ) {
-        parent=parent->sibling;
-    }
-    return parent;
-}
+#define DEFAULT_DICT "/usr/share/dict/american-english"
+
+/// Solves "Letter Matrix" puzzles
+/**
+   A letter matrix puzzle is a grid of letters. The task
+   is to find all words that can be formed by moving from
+   letter to letter. Only horizontal and vertical movements
+   are allowed, but in each step, the direction can be freely
+   chosen.
+
+   Takes one or two parameters: The first is the letter matrix
+   (ascii file), the second is the letter matrix. If the second
+   parameter is omitted, it defaults to DEFAULT_DICT.
+ */
 
 typedef struct {
     char** matrix;
@@ -23,25 +25,7 @@ typedef struct {
     int height;
 } Matrix;
 
-
-#define WORD_CHUNK 8
-
-void printTreeRec(int depth, Node* node) {
-    while(node) {
-        int i;
-        for(i=0;i<depth;++i) {
-            printf("  ");
-        }
-        if( node->c=='\n' ) {
-            printf("EOW\n");
-        } else {
-            printf("%c\n",node->c);
-        }
-        printTreeRec(depth+1,node->firstChild);
-        node=node->sibling;
-    }
-}
-
+/// reads in letter matrix from simple ascii file
 Matrix* parseMatrix(const char* matrixFileName) {
     Matrix* matrix=malloc( sizeof( Matrix ));
     int i=0;
@@ -82,6 +66,9 @@ Matrix* parseMatrix(const char* matrixFileName) {
     
 }
 
+/// reads dictionary file into tree structure
+/** A dictionary file is any ascii file that contains
+    a list of words*/
 Node* dict2tree(const char* dictFileName) {
 
     FILE* dict = fopen(dictFileName,"r");
@@ -105,10 +92,7 @@ Node* dict2tree(const char* dictFileName) {
         it=root;
         int l=strlen(buf);
         while( it ) {
-            while( it && it->c!=buf[i] ) {
-                prev=it;
-                it=it->sibling;
-            }
+            it=find_sibling_and_prev(it, buf[i], &prev);
             if( !it ) {
                 prev->sibling=malloc( sizeof( Node ) );
                 it=prev->sibling;
@@ -145,13 +129,14 @@ Node* dict2tree(const char* dictFileName) {
     return root;
 }
 
+/// checks whether a word is in a dictionary tree
+/** \param root the tree node under which to search
+ */
 int word_in_tree(Node* root, const char* word) {
     int l=strlen(word);
     int i=0;
     while( root ) {
-        while( root && root->c!=word[i] ) {
-            root=root->sibling;
-        }
+        root=find_sibling(root,word[i]);
         if( !root ) {
             break;
         }
@@ -162,9 +147,7 @@ int word_in_tree(Node* root, const char* word) {
         }
     }
     if( root ) {
-        while( root && root->c!='\n' ) {
-            root=root->sibling;
-        }
+        root=find_sibling(root,'\n');
         if( root ) {
             return 1;
         } else {
@@ -175,6 +158,7 @@ int word_in_tree(Node* root, const char* word) {
     }
 }
 
+/// A queue frame used for solving
 typedef struct {
     int row;
     int col;
@@ -184,6 +168,10 @@ typedef struct {
     void* next;
 } Frame;
 
+/// searches all words in a letter matrix
+/** \param root The root of the dictionary tree
+    \param matrix The letter matrix
+*/
 int wordsInMatrix(Node* root, Matrix* matrix) {
     int i;
     int j;
@@ -198,9 +186,7 @@ int wordsInMatrix(Node* root, Matrix* matrix) {
 
             c=matrix->matrix[j][i];
             sibling=root;
-            while( sibling && sibling->c!=c ) {
-                sibling=sibling->sibling;
-            }
+            sibling=find_sibling(sibling,c);
             if( sibling ) {
                 frame=malloc(sizeof(Frame));
 //                printf("initial node %p (%d,%d) c=%c\n",frame,j,i,c);
@@ -274,16 +260,33 @@ int wordsInMatrix(Node* root, Matrix* matrix) {
     return 0;
 }
 
+void printUsage(const char* binName) {
+    printf("%s  -  solves letter matrix puzzles\n\n",binName);
+    printf("Usage:\n");
+    printf("  %s <letter matrix> [<dict>]\n\n",binName);
+    printf("  Letter matrix and dictionary are simple ascii files.\n");
+    printf("  If dictionary is not given, it defaults to %s\n",DEFAULT_DICT);
+}
+
 int main(int argc, const char** argv) {
 
-    if( argc<3 ) {
+    if( argc<2 ) {
         printf("too few arguments\n");
+        printUsage(argv[0]);
         exit(1);
+    } else if( strcmp(argv[1],"-h")==0 || strcmp(argv[1],"--help")==0 ) {
+        printUsage(argv[0]);
+        exit(0);
     }
 
 
-    const char* dictFileName=argv[1];
-    const char* matrixFileName=argv[2];
+    const char* matrixFileName=argv[1];
+    const char* dictFileName;
+    if( argc>2 ) {
+        dictFileName=argv[2];
+    } else {
+        dictFileName=DEFAULT_DICT;
+    }
 
     Node* root=dict2tree(dictFileName);
     Matrix* matrix=parseMatrix(matrixFileName);

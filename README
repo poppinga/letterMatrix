@@ -1,0 +1,12 @@
+Solves "Letter Matrix" word puzzles
+
+A letter matrix word puzzle is a grid of letters. The task
+is to find all words that can be formed by moving from
+letter to letter. Only horizontal and vertical movements
+are allowed, but in each step, the direction can be freely
+chosen.
+
+Takes one or two parameters: The first is the letter matrix
+(ascii file), the second is the letter matrix. If the second
+parameter is omitted, it defaults to DEFAULT_DICT.
+
